@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>體感跑步遊戲</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+  
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: #f8fafc;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    h1 { margin: 0 0 10px 0; color: #38bdf8; font-size: 32px; text-shadow: 0 0 10px rgba(56,189,248,0.5); }
+    p.subtitle { color: #94a3b8; margin-bottom: 25px; font-size: 16px; }
+    
+    .main-container {
+      display: flex;
+      gap: 25px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 1200px;
+      width: 100%;
+    }
+
+    .card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 20px;
+      position: relative;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .canvas-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #7dd3fc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    canvas {
+      border-radius: 12px;
+      background-color: #000;
+      display: block;
+      box-shadow: 0 0 15px rgba(0,0,0,0.8) inset;
+    }
+
+    #webcam { display: none; }
+
+    .hud-box {
+      position: absolute;
+      top: 60px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(6px);
+      padding: 12px 15px;
+      border-radius: 12px;
+      border: 2px solid rgba(56, 189, 248, 0.5);
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      pointer-events: none;
+      min-width: 130px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+
+    .hud-box-left { left: 35px; }
+    .hud-box-right { right: 35px; }
+
+    .hud-box-title {
+      font-weight: bold;
+      font-size: 16px;
+      color: #38bdf8;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding-bottom: 4px;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    .hud-item { margin-bottom: 6px; }
+    .hud-value { color: #4ade80; font-weight: bold; text-shadow: 0 0 5px rgba(74,222,128,0.5); }
+    .status-up { color: #facc15; font-weight: bold; text-shadow: 0 0 5px rgba(250,204,21,0.5); }
+    .status-down { color: #94a3b8; }
+
+    .leaderboard-panel {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(6px);
+      padding: 10px 15px;
+      border-radius: 12px;
+      border: 1px solid rgba(250, 204, 21, 0.4);
+      font-size: 13px;
+      pointer-events: none;
+      min-width: 160px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+
+    .leaderboard-title {
+      color: #facc15;
+      font-weight: bold;
+      font-size: 13px;
+      margin-bottom: 5px;
+      text-align: center;
+      border-bottom: 1px solid rgba(250, 204, 21, 0.3);
+      padding-bottom: 3px;
+    }
+
+    .leaderboard-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .leaderboard-table td {
+      padding: 2px 4px;
+      color: #e2e8f0;
+    }
+
+    .leaderboard-table .player-row {
+      color: #38bdf8;
+      font-weight: bold;
+    }
+
+    .bottom-info-panel {
+      position: absolute;
+      bottom: 35px;
+      left: 35px;
+      right: 35px;
+      background: rgba(15, 23, 42, 0.85);
+      padding: 8px 15px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-around;
+      font-size: 14px;
+      color: #cbd5e1;
+      pointer-events: none;
+    }
+
+    .btn-container {
+      margin-top: 30px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    select {
+      background: #334155;
+      color: #f8fafc;
+      border: 1px solid #475569;
+      padding: 12px 15px;
+      font-size: 15px;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.3s;
+    }
+
+    select:hover { border-color: #38bdf8; box-shadow: 0 0 10px rgba(56,189,248,0.2); }
+    
+    .posture-seated { border-color: #facc15; color: #facc15; }
+
+    button {
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+    }
+
+    button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6); }
+    button:active { transform: scale(0.95); }
+    button.btn-stop { background: linear-gradient(135deg, #b91c1c, #ef4444); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
+    button.btn-stop:hover { box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6); }
+    button.btn-reset { background: #475569; box-shadow: 0 4px 15px rgba(71, 85, 105, 0.4); }
+    button.btn-reset:hover { background: #64748b; box-shadow: 0 6px 20px rgba(71, 85, 105, 0.6); }
+
+    .modal {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      border-radius: 16px;
+      z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: scale(0.95);
+    }
+
+    .modal.show { opacity: 1; pointer-events: auto; transform: scale(1); }
+    .modal h2 { font-size: 32px; color: #facc15; margin-bottom: 15px; text-shadow: 0 0 15px rgba(250, 204, 21, 0.5); }
+    .modal p { font-size: 18px; margin: 6px 0; font-weight: 500; }
+
+    .modal-stats-grid {
+      display: flex;
+      gap: 20px;
+      margin: 10px 0;
+      background: rgba(30, 41, 59, 0.6);
+      padding: 10px 20px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-table {
+      margin-top: 15px;
+      border-collapse: collapse;
+      width: 80%;
+      max-width: 350px;
+      background: rgba(30, 41, 59, 0.8);
+      border-radius: 10px;
+      overflow: hidden;
+      font-size: 15px;
+    }
+    .modal-table th, .modal-table td {
+      padding: 8px 12px;
+      text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .modal-table th { background: rgba(51, 65, 85, 0.8); color: #7dd3fc; }
+  </style>
+</head>
+<body>
+
+  <h1>⚡ 體感跑步遊戲</h1>
+  <p class="subtitle" id="instruction-text">💡 提示：跑道每格代表 1 公尺，抬一次腳前進 0.5m (50cm)！</p>
+
+  <div class="main-container">
+    <div class="card">
+      <div class="canvas-title">
+        <span>👁️ AI 骨架追蹤雷達</span>
+        <span id="pose-status" style="color: #facc15;">初始化鏡頭中...</span>
+      </div>
+      <video id="webcam" playsinline muted></video>
+      <canvas id="pose-canvas" width="480" height="360"></canvas>
+    </div>
+
+    <div class="card">
+      <div class="canvas-title">🚩 全息虛擬跑道 (每格 1m)</div>
+      <canvas id="game-canvas" width="600" height="360"></canvas>
+      
+      <div class="hud-box hud-box-left">
+        <div class="hud-box-title">左腳</div>
+        <div class="hud-item">抬起次數: <span id="hud-left-count" class="hud-value">0</span></div>
+        <div class="hud-item">抬起狀態: <span id="hud-left-status" class="status-down">平放</span></div>
+      </div>
+
+      <div class="hud-box hud-box-right">
+        <div class="hud-box-title">右腳</div>
+        <div class="hud-item">抬起次數: <span id="hud-right-count" class="hud-value">0</span></div>
+        <div class="hud-item">抬起狀態: <span id="hud-right-status" class="status-down">平放</span></div>
+      </div>
+
+      <div id="leaderboard-panel" class="leaderboard-panel" style="display: none;">
+        <div class="leaderboard-title">🏆 即時名次</div>
+        <table class="leaderboard-table">
+          <tbody id="leaderboard-body"></tbody>
+        </table>
+      </div>
+
+      <div class="bottom-info-panel">
+        <div>前進距離: <span id="hud-dist" style="color:#4ade80;font-weight:bold;">0.00</span> m</div>
+        <div>比賽時間: <span id="hud-time" style="color:#7dd3fc;font-weight:bold;">00:00.0</span></div>
+      </div>
+
+      <div id="win-modal" class="modal">
+        <h2 id="modal-title">🎉 挑戰結束！</h2>
+        <p>完賽距離：<span id="final-dist" style="color:#4ade80;">0.00</span> m</p>
+        <p>完賽總時間：<span id="final-time" style="color:#38bdf8;">00:00.0</span></p>
+
+        <div class="modal-stats-grid">
+          <p style="margin:0;">🦵 左腳抬起：<span id="final-left-count" style="color:#facc15; font-weight:bold;">0</span> 次</p>
+          <p style="margin:0;">🦵 右腳抬起：<span id="final-right-count" style="color:#facc15; font-weight:bold;">0</span> 次</p>
+        </div>
+
+        <div id="modal-rank-box" style="width: 100%; display: flex; flex-direction: column; align-items: center; display: none;">
+          <p style="color:#facc15; font-weight:bold; margin-top:10px;">📊 最終對決名次</p>
+          <table class="modal-table">
+            <thead>
+              <tr>
+                <th>名次</th>
+                <th>跑者</th>
+              </tr>
+            </thead>
+            <tbody id="modal-rank-body"></tbody>
+          </table>
+        </div>
+
+        <button onclick="resetGame()" style="margin-top: 20px;">🔄 再次挑戰</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-container">
+    <select id="camera-select" onchange="switchCamera(this.value)">
+      <option value="">正在搜尋鏡頭...</option>
+    </select>
+
+    <select id="posture-select" onchange="changePosture()">
+      <option value="standing">🧍 站姿模式 (追蹤雙膝)</option>
+      <option value="seated">🪑 坐姿模式 (左右膝高度動態比較)</option>
+    </select>
+
+    <select id="mode-select" onchange="changeMode()">
+      <option value="standard">🏃 標準模式</option>
+      <option value="infinite" selected>♾️ 無限模式</option>
+    </select>
+
+    <select id="time-limit-select" onchange="changeTimeLimit()">
+      <option value="0">⏱️ 時間：不限時</option>
+      <option value="30">⏱️ 時間：30 秒</option>
+      <option value="300">⏱️ 時間：5 分鐘</option>
+    </select>
+
+    <select id="bot-count-select" onchange="changeBotSettings()">
+      <option value="0">🤖 電腦：無</option>
+      <option value="1">🤖 電腦：1 位</option>
+      <option value="2">🤖 電腦：2 位</option>
+      <option value="3">🤖 電腦：3 位</option>
+    </select>
+
+    <select id="bot1-diff-select" onchange="changeBotSettings()" style="display: none;">
+      <option value="easy">⚡ 電腦 1：初級 (0.5~1 m/s)</option>
+      <option value="medium" selected>🔥 電腦 1：中級 (1.2~1.8 m/s)</option>
+      <option value="hard">💥 電腦 1：高級 (2.0~2.8 m/s)</option>
+    </select>
+
+    <select id="bot2-diff-select" onchange="changeBotSettings()" style="display: none;">
+      <option value="easy">⚡ 電腦 2：初級 (0.5~1 m/s)</option>
+      <option value="medium">🔥 電腦 2：中級 (1.2~1.8 m/s)</option>
+      <option value="hard" selected>💥 電腦 2：高級 (2.0~2.8 m/s)</option>
+    </select>
+
+    <select id="bot3-diff-select" onchange="changeBotSettings()" style="display: none;">
+      <option value="easy" selected>⚡ 電腦 3：初級 (0.5~1 m/s)</option>
+      <option value="medium">🔥 電腦 3：中級 (1.2~1.8 m/s)</option>
+      <option value="hard">💥 電腦 3：高級 (2.0~2.8 m/s)</option>
+    </select>
+    
+    <button id="start-btn" onclick="toggleGame()">▶ 開始遊戲</button>
+    <button onclick="resetGame()" class="btn-reset">🔄 重置跑道</button>
+  </div>
+
+  <script>
+    const STEP_DISTANCE = 0.5;   
+
+    let targetTimeLimit = 0;      
+    let isInfinite = true;       
+    let playerPos = 0.0;          
+
+    let botCount = 0;
+    let bots = [];
+    const BOT_COLORS = ['#f87171', '#fb923c', '#facc15', '#a855f7'];
+    const LANE_OFFSETS = [-0.28, 0.28, -0.15, 0.15];
+
+    let gameState = 'READY';      
+    let startTime = 0;
+    let elapsedTime = 0;
+
+    let isSeated = false;
+    let KNEE_RAISE_HEIGHT = 0.035;   
+    let KNEE_RELEASE_HEIGHT = 0.015; 
+    const SEATED_HEIGHT_THRESHOLD = 0.06; 
+
+    let leftState = 'DOWN';    
+    let rightState = 'DOWN';   
+
+    let leftLiftCount = 0;
+    let rightLiftCount = 0;
+
+    let leftBaseY = null;
+    let rightBaseY = null;
+
+    let smoothLeftKnee = null;
+    let smoothRightKnee = null;
+    const SMOOTH_ALPHA = 0.25; 
+    const MIN_VISIBILITY = 0.5; 
+
+    const gameCanvas = document.getElementById('game-canvas');
+    const gameCtx = gameCanvas.getContext('2d');
+    const poseCanvas = document.getElementById('pose-canvas');
+    const poseCtx = poseCanvas.getContext('2d');
+    const videoElement = document.getElementById('webcam');
+    const startBtn = document.getElementById('start-btn');
+    const cameraSelect = document.getElementById('camera-select');
+
+    let currentVideoStream = null;
+    let isDetectionActive = false;
+
+    const pose = new Pose({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+    });
+
+    pose.setOptions({
+      modelComplexity: 1, 
+      smoothLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+
+    pose.onResults(onPoseResults);
+
+    function changePosture() {
+      isSeated = document.getElementById('posture-select').value === 'seated';
+      
+      if (isSeated) {
+        document.getElementById('posture-select').classList.add('posture-seated');
+        document.getElementById('instruction-text').innerText = '💡 提示：坐姿模式請讓雙膝入鏡，交替抬膝一次即可前進 50cm！';
+      } else {
+        document.getElementById('posture-select').classList.remove('posture-seated');
+        document.getElementById('instruction-text').innerText = '💡 提示：站姿模式請讓腰部至膝蓋入鏡，每抬腳一次直接前進 50cm！';
+      }
+      resetGame();
+    }
+
+    async function initCameraDevices() {
+      try {
+        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        tempStream.getTracks().forEach(track => track.stop());
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+
+        cameraSelect.innerHTML = '';
+        if (videoDevices.length === 0) {
+          cameraSelect.innerHTML = '<option value="">未找到攝影機</option>';
+          return;
+        }
+
+        videoDevices.forEach((device, index) => {
+          const option = document.createElement('option');
+          option.value = device.deviceId;
+          option.text = device.label || `攝影機 ${index + 1}`;
+          cameraSelect.appendChild(option);
+        });
+
+        startCamera(videoDevices[0].deviceId);
+      } catch (err) {
+        console.error('攝影機存取被拒:', err);
+        document.getElementById('pose-status').innerText = '❌ 鏡頭存取被拒';
+        document.getElementById('pose-status').style.color = '#ef4444';
+      }
+    }
+
+    async function startCamera(deviceId) {
+      document.getElementById('pose-status').innerText = '⏳ 鏡頭切換中...';
+      document.getElementById('pose-status').style.color = '#facc15';
+
+      leftBaseY = null;
+      rightBaseY = null;
+      smoothLeftKnee = null;
+      smoothRightKnee = null;
+
+      if (currentVideoStream) {
+        currentVideoStream.getTracks().forEach(track => track.stop());
+      }
+
+      const constraints = {
+        video: deviceId ? { deviceId: { exact: deviceId }, width: { ideal: 640 }, height: { ideal: 480 } } : { width: { ideal: 640 }, height: { ideal: 480 } }
+      };
+
+      try {
+        currentVideoStream = await navigator.mediaDevices.getUserMedia(constraints);
+        videoElement.srcObject = currentVideoStream;
+        await videoElement.play();
+
+        document.getElementById('pose-status').innerText = '🟢 AI 追蹤鎖定中';
+        document.getElementById('pose-status').style.color = '#4ade80';
+
+        if (!isDetectionActive) {
+          isDetectionActive = true;
+          detectFrameLoop();
+        }
+      } catch (err) {
+        console.error('鏡頭開啟失敗:', err);
+        document.getElementById('pose-status').innerText = '❌ 無法切換至該鏡頭';
+        document.getElementById('pose-status').style.color = '#ef4444';
+      }
+    }
+
+    async function detectFrameLoop() {
+      if (videoElement.readyState >= 2 && !videoElement.paused && !videoElement.ended) {
+        await pose.send({ image: videoElement });
+      }
+      requestAnimationFrame(detectFrameLoop);
+    }
+
+    function switchCamera(deviceId) {
+      if (deviceId) startCamera(deviceId);
+    }
+
+    function onPoseResults(results) {
+      const w = poseCanvas.width;
+      const h = poseCanvas.height;
+
+      poseCtx.save();
+      poseCtx.clearRect(0, 0, w, h);
+      poseCtx.translate(w, 0);
+      poseCtx.scale(-1, 1);
+      poseCtx.drawImage(results.image, 0, 0, w, h);
+
+      if (results.poseLandmarks) {
+        const lm = results.poseLandmarks;
+        const rawTL = lm[25]; 
+        const rawTR = lm[26]; 
+        const refL = lm[23];  
+        const refR = lm[24];  
+
+        if (rawTL && rawTR && rawTL.visibility > MIN_VISIBILITY && rawTR.visibility > MIN_VISIBILITY) {
+          if (!smoothLeftKnee) {
+            smoothLeftKnee = { x: rawTL.x, y: rawTL.y };
+            smoothRightKnee = { x: rawTR.x, y: rawTR.y };
+          } else {
+            smoothLeftKnee.x += SMOOTH_ALPHA * (rawTL.x - smoothLeftKnee.x);
+            smoothLeftKnee.y += SMOOTH_ALPHA * (rawTL.y - smoothLeftKnee.y);
+            smoothRightKnee.x += SMOOTH_ALPHA * (rawTR.x - smoothRightKnee.x);
+            smoothRightKnee.y += SMOOTH_ALPHA * (rawTR.y - smoothRightKnee.y);
+          }
+
+          const tL = smoothLeftKnee;
+          const tR = smoothRightKnee;
+
+          if (isSeated) {
+            const diff = tL.y - tR.y;
+            let newLeftState = 'DOWN';
+            let newRightState = 'DOWN';
+
+            if (diff > SEATED_HEIGHT_THRESHOLD) newRightState = 'UP';
+            else if (diff < -SEATED_HEIGHT_THRESHOLD) newLeftState = 'UP';
+
+            if (gameState === 'RUNNING') {
+              if (leftState === 'DOWN' && newLeftState === 'UP') {
+                leftLiftCount++;
+                playerPos += STEP_DISTANCE;
+              }
+              if (rightState === 'DOWN' && newRightState === 'UP') {
+                rightLiftCount++;
+                playerPos += STEP_DISTANCE;
+              }
+            }
+
+            leftState = newLeftState;
+            rightState = newRightState;
+
+            drawTracker(tL, "左膝", leftState === 'UP', '#facc15');
+            drawTracker(tR, "右膝", rightState === 'UP', '#facc15');
+
+          } else {
+            const curLeftY = tL.y;
+            const curRightY = tR.y;
+
+            let leftRefY = (refL && refL.visibility > MIN_VISIBILITY) ? refL.y + 0.25 : leftBaseY;
+            let rightRefY = (refR && refR.visibility > MIN_VISIBILITY) ? refR.y + 0.25 : rightBaseY;
+
+            if (leftBaseY === null) leftBaseY = curLeftY;
+            if (rightBaseY === null) rightBaseY = curRightY;
+
+            if (leftState === 'DOWN') leftBaseY = leftBaseY * 0.95 + curLeftY * 0.05;
+            if (rightState === 'DOWN') rightBaseY = rightBaseY * 0.95 + curRightY * 0.05;
+
+            const leftLift = (leftRefY || leftBaseY) - curLeftY;
+            const rightLift = (rightRefY || rightBaseY) - curRightY;
+
+            drawTracker(tL, "左膝", leftState === 'UP', '#facc15');
+            drawTracker(tR, "右膝", rightState === 'UP', '#facc15');
+
+            if (gameState === 'RUNNING') {
+              if (leftLift > KNEE_RAISE_HEIGHT && leftState === 'DOWN') {
+                leftState = 'UP';
+                leftLiftCount++;
+                playerPos += STEP_DISTANCE;
+              } else if (leftLift < KNEE_RELEASE_HEIGHT && leftState === 'UP') {
+                leftState = 'DOWN';
+              }
+
+              if (rightLift > KNEE_RAISE_HEIGHT && rightState === 'DOWN') {
+                rightState = 'UP';
+                rightLiftCount++;
+                playerPos += STEP_DISTANCE;
+              } else if (rightLift < KNEE_RELEASE_HEIGHT && rightState === 'UP') {
+                rightState = 'DOWN';
+              }
+            }
+          }
+        }
+      }
+      poseCtx.restore();
+    }
+
+    function drawTracker(pt, label, isRaised, activeColor) {
+      const w = poseCanvas.width;
+      const h = poseCanvas.height;
+      const kX = pt.x * w;
+      const kY = pt.y * h;
+      const normalColor = '#38bdf8';
+      const color = isRaised ? activeColor : normalColor;
+
+      poseCtx.beginPath();
+      poseCtx.arc(kX, kY, isRaised ? 20 : 12, 0, 2 * Math.PI);
+      poseCtx.fillStyle = isRaised ? color + '66' : 'rgba(56, 189, 248, 0.2)';
+      poseCtx.fill();
+      poseCtx.lineWidth = 3;
+      poseCtx.strokeStyle = color;
+      poseCtx.stroke();
+
+      poseCtx.save();
+      poseCtx.translate(kX, kY - 22);
+      poseCtx.scale(-1, 1);
+      poseCtx.fillStyle = color;
+      poseCtx.font = 'bold 15px "Segoe UI"';
+      poseCtx.textAlign = 'center';
+      poseCtx.fillText(`${label}${isRaised ? ' ↑' : ''}`, 0, 0);
+      poseCtx.restore();
+    }
+
+    function getBotSpeedRange(diff) {
+      if (diff === 'easy') return [0.5, 1.0];
+      if (diff === 'medium') return [1.2, 1.8];
+      if (diff === 'hard') return [2.0, 2.8];
+      return [0.5, 1.0];
+    }
+
+    function initBots() {
+      bots = [];
+      if (!isInfinite || botCount === 0) return;
+
+      for (let i = 0; i < botCount; i++) {
+        const diffSelect = document.getElementById(`bot${i + 1}-diff-select`);
+        const diff = diffSelect ? diffSelect.value : 'easy';
+        const [minS, maxS] = getBotSpeedRange(diff);
+        const startSpeed = minS + Math.random() * (maxS - minS);
+
+        bots.push({
+          id: i + 1,
+          name: `⚡ 電腦 ${i + 1}`,
+          difficulty: diff,
+          pos: 0.0,
+          speedMS: startSpeed,
+          targetSpeedMS: startSpeed,
+          color: BOT_COLORS[i % BOT_COLORS.length],
+          laneOffset: LANE_OFFSETS[i % LANE_OFFSETS.length]
+        });
+      }
+    }
+
+    function updateBots() {
+      if (gameState !== 'RUNNING' || bots.length === 0) return;
+
+      bots.forEach(bot => {
+        const [minS, maxS] = getBotSpeedRange(bot.difficulty);
+        if (Math.random() < 0.03) {
+          bot.targetSpeedMS = minS + Math.random() * (maxS - minS);
+        }
+        bot.speedMS += (bot.targetSpeedMS - bot.speedMS) * 0.05;
+        bot.pos += (bot.speedMS / 60);
+      });
+    }
+
+    function getSortedRunners() {
+      let list = [
+        { name: '🏃 你 (玩家)', pos: playerPos, isPlayer: true, color: '#38bdf8' },
+        ...bots.map(b => ({ name: b.name, pos: b.pos, isPlayer: false, color: b.color }))
+      ];
+      list.sort((a, b) => b.pos - a.pos);
+      return list;
+    }
+
+    function gameLoop() {
+      if (gameState === 'RUNNING') {
+        elapsedTime = (Date.now() - startTime) / 1000;
+        updateBots();
+
+        if (isInfinite && targetTimeLimit > 0 && elapsedTime >= targetTimeLimit) {
+          elapsedTime = targetTimeLimit;
+          finishRun();
+        }
+      }
+      renderTrack();
+      updateHUD();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function renderTrack() {
+      const w = gameCanvas.width;
+      const h = gameCanvas.height;
+      const horizonY = h * 0.4;
+      const playerY = h - 50;
+
+      gameCtx.clearRect(0, 0, w, h);
+
+      let skyGrad = gameCtx.createLinearGradient(0, 0, 0, horizonY);
+      skyGrad.addColorStop(0, '#0f172a');
+      skyGrad.addColorStop(1, '#334155');
+      gameCtx.fillStyle = skyGrad;
+      gameCtx.fillRect(0, 0, w, horizonY);
+
+      gameCtx.fillStyle = '#0f172a';
+      gameCtx.fillRect(0, horizonY, w, h - horizonY);
+
+      const vpX = w / 2;
+      const trackTopW = 30;
+      const trackBotW = w * 0.85;
+
+      gameCtx.beginPath();
+      gameCtx.moveTo(vpX - trackTopW/2, horizonY);
+      gameCtx.lineTo(vpX + trackTopW/2, horizonY);
+      gameCtx.lineTo(vpX + trackBotW/2, h);
+      gameCtx.lineTo(vpX - trackBotW/2, h);
+      gameCtx.closePath();
+      gameCtx.fillStyle = '#1e293b';
+      gameCtx.fill();
+
+      gameCtx.strokeStyle = '#38bdf8';
+      gameCtx.lineWidth = 4;
+      gameCtx.stroke();
+
+      const startM = Math.floor(playerPos) - 1;
+      for (let m = startM; m <= startM + 30; m++) {
+        if (m < 0) continue;
+        let relDist = m - playerPos;
+        
+        if (relDist >= -1 && relDist <= 25) {
+          let pRatio = 1 / (1 + (relDist + 1) * 0.22);
+          let y = horizonY + (h - horizonY) * pRatio;
+
+          if (y >= horizonY && y <= h) {
+            let currentW = trackTopW + (trackBotW - trackTopW) * pRatio;
+            let leftX = vpX - currentW / 2;
+            let rightX = vpX + currentW / 2;
+
+            const isMajor = (m % 5 === 0);
+
+            gameCtx.beginPath();
+            gameCtx.moveTo(leftX, y);
+            gameCtx.lineTo(rightX, y);
+
+            if (isMajor) {
+              gameCtx.strokeStyle = 'rgba(250, 204, 21, 0.8)';
+              gameCtx.lineWidth = Math.max(1.5, 3 * pRatio);
+            } else {
+              gameCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+              gameCtx.lineWidth = Math.max(0.8, 1.5 * pRatio);
+            }
+            gameCtx.stroke();
+
+            if (isMajor && m > 0) {
+              gameCtx.fillStyle = '#facc15';
+              gameCtx.font = `bold ${Math.max(10, Math.floor(13 * pRatio))}px monospace`;
+              gameCtx.textAlign = 'right';
+              gameCtx.fillText(`${m}m`, leftX - 8, y + 4);
+            }
+          }
+        }
+      }
+
+      let allRunners = [
+        { isPlayer: true, pos: playerPos },
+        ...bots.map(b => ({ isPlayer: false, bot: b, pos: b.pos }))
+      ];
+      allRunners.sort((a, b) => b.pos - a.pos);
+
+      allRunners.forEach(runner => {
+        if (runner.isPlayer) {
+          drawRunner(vpX + (botCount > 0 ? 0.08 * trackBotW : 0), playerY);
+        } else {
+          let b = runner.bot;
+          let relDist = b.pos - playerPos;
+
+          if (relDist >= -2 && relDist <= 35) {
+            let pRatio = 1 / (1 + relDist * 0.12);
+            let y = horizonY + (playerY - horizonY) * Math.min(1.2, pRatio);
+            let currentTrackW = trackTopW + (trackBotW - trackTopW) * Math.min(1.2, pRatio);
+            let botX = vpX + (b.laneOffset * currentTrackW);
+            let scale = Math.max(0.2, Math.min(1.2, pRatio));
+
+            drawBotRunner(botX, y, scale, b.color, b.name, b.speedMS);
+          }
+        }
+      });
+    }
+
+    function drawRunner(x, y) {
+      gameCtx.save();
+      gameCtx.translate(x, y);
+
+      gameCtx.beginPath();
+      gameCtx.arc(0, -40, 12, 0, Math.PI * 2);
+      gameCtx.fillStyle = '#f8fafc';
+      gameCtx.fill();
+
+      gameCtx.beginPath();
+      gameCtx.moveTo(0, -28);
+      gameCtx.lineTo(0, 5);
+      gameCtx.lineWidth = 8;
+      gameCtx.lineCap = 'round';
+      gameCtx.strokeStyle = '#38bdf8';
+      gameCtx.stroke();
+
+      gameCtx.restore();
+    }
+
+    function drawBotRunner(x, y, scale, color, name, speed) {
+      gameCtx.save();
+      gameCtx.translate(x, y);
+      gameCtx.scale(scale, scale);
+
+      let bob = Math.sin(Date.now() * 0.015 * Math.min(speed, 15)) * 6;
+      gameCtx.translate(0, bob);
+
+      gameCtx.beginPath();
+      gameCtx.arc(0, -40, 10, 0, Math.PI * 2);
+      gameCtx.fillStyle = '#f8fafc';
+      gameCtx.shadowColor = color;
+      gameCtx.shadowBlur = 8;
+      gameCtx.fill();
+
+      gameCtx.beginPath();
+      gameCtx.moveTo(0, -28);
+      gameCtx.lineTo(0, 5);
+      gameCtx.lineWidth = 7;
+      gameCtx.lineCap = 'round';
+      gameCtx.strokeStyle = color;
+      gameCtx.stroke();
+
+      gameCtx.fillStyle = color;
+      gameCtx.font = 'bold 14px "Segoe UI"';
+      gameCtx.textAlign = 'center';
+      gameCtx.fillText(name, 0, -55);
+
+      gameCtx.restore();
+    }
+
+    function updateHUD() {
+      document.getElementById('hud-dist').innerText = playerPos.toFixed(2);
+
+      document.getElementById('hud-left-count').innerText = leftLiftCount;
+      const leftStatusEl = document.getElementById('hud-left-status');
+      if (leftState === 'UP') {
+        leftStatusEl.innerText = '抬起 ↑';
+        leftStatusEl.className = 'status-up';
+      } else {
+        leftStatusEl.innerText = '平放';
+        leftStatusEl.className = 'status-down';
+      }
+
+      document.getElementById('hud-right-count').innerText = rightLiftCount;
+      const rightStatusEl = document.getElementById('hud-right-status');
+      if (rightState === 'UP') {
+        rightStatusEl.innerText = '抬起 ↑';
+        rightStatusEl.className = 'status-up';
+      } else {
+        rightStatusEl.innerText = '平放';
+        rightStatusEl.className = 'status-down';
+      }
+
+      const leaderboardPanel = document.getElementById('leaderboard-panel');
+      const leaderboardBody = document.getElementById('leaderboard-body');
+
+      if (isInfinite && botCount > 0) {
+        leaderboardPanel.style.display = 'block';
+        const runners = getSortedRunners();
+
+        leaderboardBody.innerHTML = runners.map((r, index) => {
+          const rowClass = r.isPlayer ? 'player-row' : '';
+          return `<tr class="${rowClass}">
+            <td>第 ${index + 1} 名</td>
+            <td style="color:${r.color}">${r.name}</td>
+          </tr>`;
+        }).join('');
+      } else {
+        leaderboardPanel.style.display = 'none';
+      }
+
+      if (isInfinite && targetTimeLimit > 0) {
+        let remainTime = Math.max(0, targetTimeLimit - elapsedTime);
+        let rMin = Math.floor(remainTime / 60);
+        let rSec = (remainTime % 60).toFixed(1);
+        document.getElementById('hud-time').innerText = 
+          `${rMin.toString().padStart(2, '0')}:${rSec.padStart(4, '0')} (倒數)`;
+      } else {
+        let minutes = Math.floor(elapsedTime / 60);
+        let seconds = (elapsedTime % 60).toFixed(1);
+        document.getElementById('hud-time').innerText = 
+          `${minutes.toString().padStart(2, '0')}:${seconds.padStart(4, '0')}`;
+      }
+    }
+
+    function updateBotControlsUI() {
+      const timeSelect = document.getElementById('time-limit-select');
+      const botCountSelect = document.getElementById('bot-count-select');
+      const bot1Select = document.getElementById('bot1-diff-select');
+      const bot2Select = document.getElementById('bot2-diff-select');
+      const bot3Select = document.getElementById('bot3-diff-select');
+
+      if (isInfinite) {
+        timeSelect.style.display = 'inline-block';
+        botCountSelect.style.display = 'inline-block';
+
+        bot1Select.style.display = botCount >= 1 ? 'inline-block' : 'none';
+        bot2Select.style.display = botCount >= 2 ? 'inline-block' : 'none';
+        bot3Select.style.display = botCount >= 3 ? 'inline-block' : 'none';
+      } else {
+        timeSelect.style.display = 'none';
+        botCountSelect.style.display = 'none';
+        bot1Select.style.display = 'none';
+        bot2Select.style.display = 'none';
+        bot3Select.style.display = 'none';
+      }
+    }
+
+    function changeMode() {
+      const mode = document.getElementById('mode-select').value;
+      isInfinite = (mode === 'infinite');
+      updateBotControlsUI();
+      resetGame();
+    }
+
+    function changeTimeLimit() {
+      targetTimeLimit = parseInt(document.getElementById('time-limit-select').value);
+      resetGame();
+    }
+
+    function changeBotSettings() {
+      botCount = parseInt(document.getElementById('bot-count-select').value);
+      updateBotControlsUI();
+      resetGame();
+    }
+
+    function toggleGame() {
+      if (gameState === 'RUNNING') {
+        finishRun();
+      } else {
+        playerPos = 0.0;
+        elapsedTime = 0;
+        leftLiftCount = 0;
+        rightLiftCount = 0;
+        startTime = Date.now();
+        gameState = 'RUNNING';
+
+        initBots();
+
+        document.getElementById('win-modal').classList.remove('show');
+        startBtn.innerText = '🏁 結束並結算';
+        startBtn.classList.add('btn-stop');
+      }
+    }
+
+    function finishRun() {
+      gameState = 'FINISHED';
+      showWinScreen();
+    }
+
+    function resetGame() {
+      gameState = 'READY';
+      playerPos = 0.0;
+      elapsedTime = 0;
+      leftLiftCount = 0;
+      rightLiftCount = 0;
+      leftBaseY = null;
+      rightBaseY = null;
+      smoothLeftKnee = null;
+      smoothRightKnee = null;
+      leftState = 'DOWN';
+      rightState = 'DOWN';
+
+      initBots();
+
+      document.getElementById('win-modal').classList.remove('show');
+      startBtn.innerText = '▶ 開始遊戲';
+      startBtn.classList.remove('btn-stop');
+      updateHUD();
+    }
+
+    function showWinScreen() {
+      let minutes = Math.floor(elapsedTime / 60);
+      let seconds = (elapsedTime % 60).toFixed(1);
+      document.getElementById('final-time').innerText = `${minutes.toString().padStart(2, '0')}:${seconds.padStart(4, '0')}`;
+      document.getElementById('final-dist').innerText = playerPos.toFixed(2);
+      
+      document.getElementById('final-left-count').innerText = leftLiftCount;
+      document.getElementById('final-right-count').innerText = rightLiftCount;
+
+      const modalRankBox = document.getElementById('modal-rank-box');
+      const modalRankBody = document.getElementById('modal-rank-body');
+
+      if (isInfinite && botCount > 0) {
+        modalRankBox.style.display = 'flex';
+        const runners = getSortedRunners();
+        modalRankBody.innerHTML = runners.map((r, index) => `
+          <tr ${r.isPlayer ? 'style="color:#38bdf8; font-weight:bold;"' : ''}>
+            <td>第 ${index + 1} 名</td>
+            <td style="color:${r.color};">${r.name}</td>
+          </tr>
+        `).join('');
+      } else {
+        modalRankBox.style.display = 'none';
+      }
+
+      document.getElementById('win-modal').classList.add('show');
+      startBtn.innerText = '▶ 開始遊戲';
+      startBtn.classList.remove('btn-stop');
+    }
+
+    updateBotControlsUI();
+    initCameraDevices();
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
