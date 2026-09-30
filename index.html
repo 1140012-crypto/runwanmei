@@ -243,17 +243,33 @@
       border-bottom: 1px solid rgba(255,255,255,0.1);
     }
     .modal-table th { background: rgba(51, 65, 85, 0.8); color: #7dd3fc; }
-  </style>
+  
+body {background:radial-gradient(ellipse at 15% 0%,#e2f5ee,transparent 55%),#f4f6f0;color:#203a35;padding:32px 24px 40px;font-family:system-ui,"Microsoft JhengHei",sans-serif}
+h1 {color:#173f35;text-shadow:none;font-size:clamp(26px,4vw,38px);letter-spacing:1px} p.subtitle {color:#5e756c;margin:12px 0 28px;text-align:center;line-height:1.8}
+.main-container {max-width:1280px;display:grid;grid-template-columns:minmax(260px, .8fr) minmax(0,1.5fr);align-items:start;gap:22px}
+.card {background:#fff;border:1px solid #dbe5df;border-radius:24px;padding:20px;box-shadow:0 14px 40px #173f3510;display:flex;flex-wrap:wrap;gap:12px}
+.canvas-title {width:100%;color:#244f43;margin:0 0 4px;font-size:16px}.canvas-title span:last-child {font-size:12px}
+canvas {width:100%;height:auto;background:#dae9e2;border-radius:16px;box-shadow:none} #pose-canvas {aspect-ratio:4/3}
+.hud-box {position:static;min-width:0;flex:1;padding:12px;background:#f1f7f3;border:1px solid #e0eae3;box-shadow:none;font-family:inherit;color:#60786d;font-size:12px;backdrop-filter:none}
+.hud-box-title {color:#245e48;border:0;text-align:left;font-size:14px}.hud-value {color:#16825e;text-shadow:none}.status-up {color:#c67c13;text-shadow:none}.status-down{color:#84968c}
+.leaderboard-panel {position:static;transform:none;width:100%;background:#f8f5e9;border:1px solid #e8e1c9;box-shadow:none}.leaderboard-title{color:#8d701a}.leaderboard-table td{color:#435a50}
+.bottom-info-panel {position:static;width:100%;background:#143f34;color:#d4e6de;border-radius:14px;padding:17px 10px;font-size:14px;gap:10px;flex-wrap:wrap}
+.btn-container {max-width:1280px;width:100%;background:#fff;border:1px solid #dbe5df;border-radius:22px;padding:20px;margin-top:22px;gap:10px;justify-content:flex-start}
+select {background:#f4f7f3;color:#365a4c;border:1px solid #dce6dd;padding:11px;font-size:13px;max-width:100%;font-weight:500}select:focus-visible,button:focus-visible{outline:3px solid #e8ad39;outline-offset:3px}
+button {background:#167b58;box-shadow:none;padding:12px 22px}button:hover{box-shadow:0 6px 18px #167b5825}button.btn-reset{background:#e9efea;color:#365747;box-shadow:none}
+.modal {background:rgba(15,48,39,.96);color:#fff;overflow:auto;padding:24px}.modal h2{font-size:26px;text-shadow:none}.modal-stats-grid{flex-wrap:wrap;justify-content:center}.modal p{font-size:15px}
+@media(max-width:850px){body{padding:20px 12px}.main-container{grid-template-columns:1fr}.main-container .card:first-child{order:2}.btn-container{padding:14px}.card{padding:14px}.hud-box{font-size:11px}.modal{justify-content:flex-start}.modal h2{margin-top:10px}}
+</style>
 </head>
 <body>
 
-  <h1>⚡ 體感跑步遊戲</h1>
-  <p class="subtitle" id="instruction-text">💡 提示：跑道每格代表 1 公尺，抬一次腳前進 0.5m (50cm)！</p>
+  <h1>晴空跑者 · 體感跑步遊戲</h1>
+  <p class="subtitle" id="instruction-text">💡 提示：跑道每格代表 1 公尺，抬腳一次或按 W 一次，前進 0.5 m。準備好就開始！</p>
 
   <div class="main-container">
     <div class="card">
       <div class="canvas-title">
-        <span>👁️ AI 骨架追蹤雷達</span>
+        <span>動作追蹤 · 鏡頭預覽</span>
         <span id="pose-status" style="color: #facc15;">初始化鏡頭中...</span>
       </div>
       <video id="webcam" playsinline muted></video>
@@ -261,8 +277,8 @@
     </div>
 
     <div class="card">
-      <div class="canvas-title">🚩 全息虛擬跑道 (每格 1m)</div>
-      <canvas id="game-canvas" width="600" height="360"></canvas>
+      <div class="canvas-title">SUNNY TRACK　｜　晴空跑道 · 每格 1 m</div>
+      <canvas id="game-canvas" width="960" height="540"></canvas>
       
       <div class="hud-box hud-box-left">
         <div class="hud-box-title">左腳</div>
@@ -412,7 +428,7 @@
     let currentVideoStream = null;
     let isDetectionActive = false;
 
-    const pose = new Pose({
+    const pose = typeof Pose === "undefined" ? {setOptions(){},onResults(){}, async send(){}} : new Pose({
       locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
     });
 
@@ -430,10 +446,10 @@
       
       if (isSeated) {
         document.getElementById('posture-select').classList.add('posture-seated');
-        document.getElementById('instruction-text').innerText = '💡 提示：坐姿模式請讓雙膝入鏡，交替抬膝一次即可前進 50cm！';
+        document.getElementById('instruction-text').innerText = '💡 提示：坐姿模式請讓雙膝入鏡，交替抬膝一次即可前進 50cm，也可按 W 前進！';
       } else {
         document.getElementById('posture-select').classList.remove('posture-seated');
-        document.getElementById('instruction-text').innerText = '💡 提示：站姿模式請讓腰部至膝蓋入鏡，每抬腳一次直接前進 50cm！';
+        document.getElementById('instruction-text').innerText = '💡 提示：站姿模式請讓腰部至膝蓋入鏡，每抬腳一次直接前進 50cm，也可按 W 前進！';
       }
       resetGame();
     }
@@ -462,7 +478,7 @@
         startCamera(videoDevices[0].deviceId);
       } catch (err) {
         console.error('攝影機存取被拒:', err);
-        document.getElementById('pose-status').innerText = '❌ 鏡頭存取被拒';
+        document.getElementById('pose-status').innerText = '鏡頭未啟用 · 可按 W 遊玩';
         document.getElementById('pose-status').style.color = '#ef4444';
       }
     }
@@ -705,154 +721,75 @@
       requestAnimationFrame(gameLoop);
     }
 
+    let visualPos = 0;
+    let lastKeyboardStep = 0;
+    let keyboardCount = 0;
+    document.addEventListener('keydown', e => {
+      if(e.key.toLowerCase() !== 'w' || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+      if(e.target.closest('input,textarea,[contenteditable="true"]')) return;
+      if(gameState !== 'RUNNING') return;
+      e.preventDefault(); playerPos += STEP_DISTANCE; keyboardCount++; lastKeyboardStep = performance.now();
+    });
     function renderTrack() {
-      const w = gameCanvas.width;
-      const h = gameCanvas.height;
-      const horizonY = h * 0.4;
-      const playerY = h - 50;
-
-      gameCtx.clearRect(0, 0, w, h);
-
-      let skyGrad = gameCtx.createLinearGradient(0, 0, 0, horizonY);
-      skyGrad.addColorStop(0, '#0f172a');
-      skyGrad.addColorStop(1, '#334155');
-      gameCtx.fillStyle = skyGrad;
-      gameCtx.fillRect(0, 0, w, horizonY);
-
-      gameCtx.fillStyle = '#0f172a';
-      gameCtx.fillRect(0, horizonY, w, h - horizonY);
-
-      const vpX = w / 2;
-      const trackTopW = 30;
-      const trackBotW = w * 0.85;
-
-      gameCtx.beginPath();
-      gameCtx.moveTo(vpX - trackTopW/2, horizonY);
-      gameCtx.lineTo(vpX + trackTopW/2, horizonY);
-      gameCtx.lineTo(vpX + trackBotW/2, h);
-      gameCtx.lineTo(vpX - trackBotW/2, h);
-      gameCtx.closePath();
-      gameCtx.fillStyle = '#1e293b';
-      gameCtx.fill();
-
-      gameCtx.strokeStyle = '#38bdf8';
-      gameCtx.lineWidth = 4;
-      gameCtx.stroke();
-
-      const startM = Math.floor(playerPos) - 1;
-      for (let m = startM; m <= startM + 30; m++) {
-        if (m < 0) continue;
-        let relDist = m - playerPos;
-        
-        if (relDist >= -1 && relDist <= 25) {
-          let pRatio = 1 / (1 + (relDist + 1) * 0.22);
-          let y = horizonY + (h - horizonY) * pRatio;
-
-          if (y >= horizonY && y <= h) {
-            let currentW = trackTopW + (trackBotW - trackTopW) * pRatio;
-            let leftX = vpX - currentW / 2;
-            let rightX = vpX + currentW / 2;
-
-            const isMajor = (m % 5 === 0);
-
-            gameCtx.beginPath();
-            gameCtx.moveTo(leftX, y);
-            gameCtx.lineTo(rightX, y);
-
-            if (isMajor) {
-              gameCtx.strokeStyle = 'rgba(250, 204, 21, 0.8)';
-              gameCtx.lineWidth = Math.max(1.5, 3 * pRatio);
-            } else {
-              gameCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-              gameCtx.lineWidth = Math.max(0.8, 1.5 * pRatio);
-            }
-            gameCtx.stroke();
-
-            if (isMajor && m > 0) {
-              gameCtx.fillStyle = '#facc15';
-              gameCtx.font = `bold ${Math.max(10, Math.floor(13 * pRatio))}px monospace`;
-              gameCtx.textAlign = 'right';
-              gameCtx.fillText(`${m}m`, leftX - 8, y + 4);
-            }
-          }
-        }
+      const c=gameCtx,w=gameCanvas.width,h=gameCanvas.height,hy=h*.38,vx=w/2;
+      visualPos += (playerPos-visualPos)*.15;
+      const sky=c.createLinearGradient(0,0,0,hy);sky.addColorStop(0,'#88cee6');sky.addColorStop(1,'#e0f2e5');c.fillStyle=sky;c.fillRect(0,0,w,h);
+      c.fillStyle='#fff1b0';c.beginPath();c.arc(w*.79,h*.16,33,0,Math.PI*2);c.fill();
+      for(let i=0;i<5;i++){c.fillStyle='#ffffffaa';c.beginPath();c.ellipse((i*211+95)%w,65+i%2*37,65,12,0,0,Math.PI*2);c.fill();}
+      for(let layer=0;layer<2;layer++){c.fillStyle=layer?'#70a895':'#a4c5b7';c.beginPath();c.moveTo(0,hy+30);for(let x=0;x<=w;x+=40)c.lineTo(x,hy-35-layer*12-Math.sin(x*.012+layer*2)*22);c.lineTo(w,hy+40);c.fill();}
+      const grass=c.createLinearGradient(0,hy,0,h);grass.addColorStop(0,'#99bc78');grass.addColorStop(1,'#4e8b62');c.fillStyle=grass;c.fillRect(0,hy,w,h-hy);
+      const top=38,bottom=w*.84;
+      function poly(offset1,offset2){c.beginPath();c.moveTo(vx+top*offset1,hy);c.lineTo(vx+top*offset2,hy);c.lineTo(vx+bottom*offset2,h);c.lineTo(vx+bottom*offset1,h);c.closePath();}
+      for(let i=0;i<4;i++){poly(-.5+i*.25,-.25+i*.25);c.fillStyle=i%2?'#cd785c':'#d98668';c.fill();}
+      for(let i=0;i<=4;i++){let off=-.5+i*.25;c.beginPath();c.moveTo(vx+top*off,hy);c.lineTo(vx+bottom*off,h);c.strokeStyle='#fff6df';c.lineWidth=i===0||i===4?5:2;c.stroke();}
+      for(let m=Math.max(0,Math.floor(visualPos)-1);m<visualPos+45;m++){
+        const d=m-visualPos;if(d < -1)continue;const p=1/(1+(d+1)*.16),y=hy+(h-hy)*p,tw=top+(bottom-top)*p;
+        c.beginPath();c.moveTo(vx-tw/2,y);c.lineTo(vx+tw/2,y);c.strokeStyle=m%5===0?'#fff1ccbb':'#ffffff35';c.lineWidth=m%5===0?3:1;c.stroke();
+        if(m%5===0){c.fillStyle='#fff9df';c.font=`bold ${Math.max(11,18*p)}px system-ui`;c.textAlign='right';c.fillText(m+' m',vx-tw/2-10,y);}
+        if(m===0)for(let j=0;j<24;j++){c.fillStyle=j%2?'#31453f':'#fff';c.fillRect(vx-tw/2+j*tw/24,y-6*p,tw/24,12*p);}
       }
-
-      let allRunners = [
-        { isPlayer: true, pos: playerPos },
-        ...bots.map(b => ({ isPlayer: false, bot: b, pos: b.pos }))
-      ];
-      allRunners.sort((a, b) => b.pos - a.pos);
-
-      allRunners.forEach(runner => {
-        if (runner.isPlayer) {
-          drawRunner(vpX + (botCount > 0 ? 0.08 * trackBotW : 0), playerY);
-        } else {
-          let b = runner.bot;
-          let relDist = b.pos - playerPos;
-
-          if (relDist >= -2 && relDist <= 35) {
-            let pRatio = 1 / (1 + relDist * 0.12);
-            let y = horizonY + (playerY - horizonY) * Math.min(1.2, pRatio);
-            let currentTrackW = trackTopW + (trackBotW - trackTopW) * Math.min(1.2, pRatio);
-            let botX = vpX + (b.laneOffset * currentTrackW);
-            let scale = Math.max(0.2, Math.min(1.2, pRatio));
-
-            drawBotRunner(botX, y, scale, b.color, b.name, b.speedMS);
-          }
-        }
-      });
+      const runners=[{pos:playerPos,isPlayer:true},...bots.map(bot=>({pos:bot.pos,bot}))].sort((a,b)=>b.pos-a.pos);
+      for(const r of runners){if(r.isPlayer){drawAthlete(vx+(bots.length?bottom*.125:0),h-70,1.35,'#176954','你',gameState==='RUNNING'&&(performance.now()-lastKeyboardStep<350||leftState==='UP'||rightState==='UP'));}else{
+        const d=r.pos-visualPos;if(d < -2 || d>40)continue;const p=Math.min(1.2,1/(1+d*.12));drawAthlete(vx+r.bot.laneOffset*(top+(bottom-top)*p),hy+(h-70-hy)*p,Math.max(.25,p)*1.2,r.bot.color,'電腦 '+r.bot.id,gameState==='RUNNING');
+      }}
+      if(gameState==='READY'){c.fillStyle='#164c3de0';c.fillRect(w/2-168,hy-53,336,42);c.fillStyle='#fff';c.textAlign='center';c.font='bold 17px system-ui';c.fillText('點擊「開始遊戲」踏出第一步',w/2,hy-26);}
     }
-
-    function drawRunner(x, y) {
-      gameCtx.save();
-      gameCtx.translate(x, y);
-
-      gameCtx.beginPath();
-      gameCtx.arc(0, -40, 12, 0, Math.PI * 2);
-      gameCtx.fillStyle = '#f8fafc';
-      gameCtx.fill();
-
-      gameCtx.beginPath();
-      gameCtx.moveTo(0, -28);
-      gameCtx.lineTo(0, 5);
-      gameCtx.lineWidth = 8;
-      gameCtx.lineCap = 'round';
-      gameCtx.strokeStyle = '#38bdf8';
-      gameCtx.stroke();
-
-      gameCtx.restore();
-    }
-
-    function drawBotRunner(x, y, scale, color, name, speed) {
-      gameCtx.save();
-      gameCtx.translate(x, y);
-      gameCtx.scale(scale, scale);
-
-      let bob = Math.sin(Date.now() * 0.015 * Math.min(speed, 15)) * 6;
-      gameCtx.translate(0, bob);
-
-      gameCtx.beginPath();
-      gameCtx.arc(0, -40, 10, 0, Math.PI * 2);
-      gameCtx.fillStyle = '#f8fafc';
-      gameCtx.shadowColor = color;
-      gameCtx.shadowBlur = 8;
-      gameCtx.fill();
-
-      gameCtx.beginPath();
-      gameCtx.moveTo(0, -28);
-      gameCtx.lineTo(0, 5);
-      gameCtx.lineWidth = 7;
-      gameCtx.lineCap = 'round';
-      gameCtx.strokeStyle = color;
-      gameCtx.stroke();
-
-      gameCtx.fillStyle = color;
-      gameCtx.font = 'bold 14px "Segoe UI"';
-      gameCtx.textAlign = 'center';
-      gameCtx.fillText(name, 0, -55);
-
-      gameCtx.restore();
+    function drawAthlete(x,y,scale,color,label,moving){
+      const c=gameCtx;
+      // Rear view: opposite arm and leg advance together, with bent joints.
+      const phase=performance.now()*.012;
+      const swing=moving?Math.sin(phase):0;
+      const bounce=moving?Math.cos(phase*2)*1.4:0;
+      c.save();c.translate(x,y);c.scale(scale,scale);
+      c.fillStyle='#193a3b28';c.beginPath();c.ellipse(0,2,18,5,0,0,Math.PI*2);c.fill();
+      c.translate(0,bounce);
+      c.lineCap='round';c.lineJoin='round';
+      function limb(points,col,width){c.strokeStyle=col;c.lineWidth=width;c.beginPath();points.forEach((p,i)=>i?c.lineTo(...p):c.moveTo(...p));c.stroke();}
+      function leg(side,advance){
+        const hip=[side*5,-29];
+        const knee=[side*(7+Math.max(0,advance)*2),-15-Math.max(0,advance)*7];
+        const lifted=Math.max(0,advance);
+        const foot=[side*(8+lifted*3),-1-lifted*15];
+        limb([hip,knee],'#253f50',8);
+        limb([knee,foot],'#dfab87',5.5);
+        limb([[foot[0]-3,foot[1]],[foot[0]+4,foot[1]+1]],'#fff8e6',5);
+      }
+      leg(-1,swing);leg(1,-swing);
+      function arm(side,advance){
+        const shoulder=[side*10,-53];
+        const elbow=[side*(15+Math.max(0,-advance)*3),-40+advance*3];
+        const hand=[side*(11+Math.max(0,-advance)*2),-47+advance*8];
+        limb([shoulder,elbow,hand],'#dfab87',5);
+      }
+      arm(-1,-swing);arm(1,swing);
+      // Tapered jersey and shorts follow a slightly forward leaning torso.
+      c.fillStyle=color;c.beginPath();c.moveTo(-11,-55);c.quadraticCurveTo(0,-59,11,-55);c.lineTo(8,-30);c.lineTo(-8,-30);c.closePath();c.fill();
+      c.fillStyle='#263f50';c.fillRect(-8,-31,16,7);
+      c.fillStyle='#fff5dd';c.fillRect(-5,-48,10,11);c.fillStyle='#244f43';c.textAlign='center';c.font='bold 8px system-ui';c.fillText('1',0,-40);
+      limb([[0,-55],[0,-60]],'#d9a27e',6);
+      c.fillStyle='#dfa987';c.beginPath();c.ellipse(0,-66,8.5,10,0,0,Math.PI*2);c.fill();
+      c.fillStyle='#263b34';c.beginPath();c.ellipse(0,-69,8.5,7,0,0,Math.PI*2);c.fill();
+      c.fillStyle='#ffffff';c.textAlign='center';c.font='bold 12px system-ui';c.shadowColor='#173d34';c.shadowBlur=4;c.fillText(label,0,-85);c.restore();
     }
 
     function updateHUD() {
@@ -956,6 +893,7 @@
         finishRun();
       } else {
         playerPos = 0.0;
+        visualPos = 0; keyboardCount = 0;
         elapsedTime = 0;
         leftLiftCount = 0;
         rightLiftCount = 0;
@@ -977,6 +915,7 @@
 
     function resetGame() {
       gameState = 'READY';
+      visualPos = 0; keyboardCount = 0;
       playerPos = 0.0;
       elapsedTime = 0;
       leftLiftCount = 0;
@@ -1026,6 +965,8 @@
       startBtn.classList.remove('btn-stop');
     }
 
+    poseCtx.fillStyle='#e6eee7';poseCtx.fillRect(0,0,480,360);
+    poseCtx.fillStyle='#5b7868';poseCtx.textAlign='center';poseCtx.font='17px system-ui';poseCtx.fillText('允許鏡頭後顯示動作追蹤',240,170);poseCtx.font='14px system-ui';poseCtx.fillText('也可以使用 W 鍵開始跑步',240,200);
     updateBotControlsUI();
     initCameraDevices();
     requestAnimationFrame(gameLoop);
